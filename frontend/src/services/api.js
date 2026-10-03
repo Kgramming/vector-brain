@@ -88,11 +88,15 @@ async function readSSE(res, handlers) {
   }
 }
 
-export async function streamChat(question, handlers, topK) {
+export async function streamChat(question, handlers, { topK, documentIds } = {}) {
   const res = await check(await fetch(url('/api/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, top_k: topK ?? null }),
+    body: JSON.stringify({
+      question,
+      top_k: topK ?? null,
+      document_ids: documentIds && documentIds.length ? documentIds : null,
+    }),
   }));
   await readSSE(res, handlers);
 }
