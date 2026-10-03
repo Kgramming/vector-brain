@@ -22,6 +22,7 @@ SentenceTransformer instance).
 import importlib.util
 import os
 import textwrap
+import threading
 import time
 import uuid
 
@@ -114,6 +115,53 @@ def _wait_ready(client, doc_id, timeout=900):
             pytest.fail(f"real ingestion failed: {match[0]['error']}")
         time.sleep(5)
     pytest.fail(f"ingestion of {doc_id} not ready after {timeout}s")
+
+
+needs_real_model = pytest.mark.skipif(
+    not (REAL_E2E and HAS_ST),
+    reason="needs RUN_REAL_E2E=1 and sentence-transformers",
+)
+
+
+@needs_real_model
+def test_concurrent_embedding_model_load(monkeypatch):
+    """Regression: threads racing the lazy ST load must not corrupt each other.
+
+    Found live 2026-10-04: three simultaneous uploads each triggered
+    _load_model() at once; transformers builds the model on the torch "meta"
+    device during from_pretrained, the concurrent inits raced, and one
+    thread died with "Cannot copy out of meta tensor". _load_model() now
+    serializes the load with a lock (double-checked).
+    """
+    from app import embeddings as emb_mod
+    from app.config import get_settings
+
+    monkeypatch.setenv("MOCK_EMBEDDINGS", "false")
+    get_settings.cache_clear()
+    assert get_settings().MOCK_EMBEDDINGS is False
+
+    emb_mod._model = None  # force the lazy-load race
+    errors: list = []
+    results: list = []
+
+    def worker(i):
+        try:
+            vecs = emb_mod.embed_texts([f"concurrency regression probe {i}"])
+            assert len(vecs[0]) == 384
+            results.append(vecs[0][:4])
+        except Exception as e:  # noqa: BLE001 - collecting, asserted below
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=600)
+
+    assert not errors, f"concurrent model load failed: {errors[0]!r}"
+    assert len(results) == 3
+    assert type(emb_mod._model).__name__ == "SentenceTransformer"
+    get_settings.cache_clear()
 
 
 @needs_real

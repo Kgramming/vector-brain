@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import threading
 from typing import Sequence
 
 import numpy as np
@@ -21,16 +22,23 @@ import numpy as np
 from .config import get_settings
 
 _model = None
+# Serializes lazy model loading. SentenceTransformer/transformers builds the
+# model on the torch "meta" device during from_pretrained; two threads doing
+# that at once corrupt each other and one loader ends up with meta tensors
+# ("Cannot copy out of meta tensor"). Seen live with 3 simultaneous uploads.
+_model_lock = threading.Lock()
 
 
 def _load_model():
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
+        with _model_lock:
+            if _model is None:  # double-checked: only one thread loads
+                from sentence_transformers import SentenceTransformer
 
-        settings = get_settings()
-        # Explicit CPU: avoids Metal/MPS crashes on Apple Silicon.
-        _model = SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
+                settings = get_settings()
+                # Explicit CPU: avoids Metal/MPS crashes on Apple Silicon.
+                _model = SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
     return _model
 
 

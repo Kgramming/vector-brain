@@ -141,24 +141,36 @@ DECLINE_MARKER = "[DECLINED]"
 
 def _stream_answer(question: str, hits: list[dict]):
     """
-    SSE stream. First event carries the sources; then tokens; then a done
+    SSE stream. The sources event is emitted once the decline decision is
+    known (within the first ~len(marker) chars), then tokens, then a done
     event with the declined flag. A leading [DECLINED] marker is consumed
-    server-side (never streamed) so refusals carry no citations.
+    server-side (never streamed) and refusals carry no citations — matching
+    /chat/sync. Emitting sources up-front would leak citations on a
+    model-level refusal.
 
     Detection is prefix-exact: we buffer until the head either matches the
-    marker or provably diverges from it (decided within ~len(marker) chars),
-    so a refusal can never leak the marker into the visible answer.
+    marker or provably diverges from it, so a refusal can never leak the
+    marker into the visible answer.
     """
-    yield f"event: sources\ndata: {json.dumps({'sources': _to_source_out(hits)})}\n\n"
-
     context = format_context(hits)
     buf = ""
     declined = False
     decided = False
+    sources_sent = False
 
     def emit(text: str):
         if text:
             yield f"data: {json.dumps({'token': text})}\n\n"
+
+    def emit_sources():
+        # Exactly once, at the moment the decline decision is made (or on
+        # error/empty stream so the client is never left without the event).
+        nonlocal sources_sent
+        if sources_sent:
+            return
+        sources_sent = True
+        srcs = [] if declined else _to_source_out(hits)
+        yield f"event: sources\ndata: {json.dumps({'sources': srcs})}\n\n"
 
     try:
         token_iter = stream_chat(question, context)
@@ -170,16 +182,24 @@ def _stream_answer(question: str, hits: list[dict]):
                     declined, decided = True, True
                     rest = head[len(DECLINE_MARKER):]
                     buf = ""
+                    yield from emit_sources()  # declined -> no citations
                     yield from emit(rest)
                     continue
                 if len(head) >= len(DECLINE_MARKER) or not DECLINE_MARKER.startswith(head):
                     decided = True  # head provably isn't the marker
+                    yield from emit_sources()
                     yield from emit(buf)
                     buf = ""
                 continue
             yield from emit(token)
+        if not decided:
+            # Stream ended before the head resolved (empty/tiny output):
+            # not a refusal; still emit sources so the event isn't missing.
+            decided = True
+            yield from emit_sources()
         yield from emit(buf)  # short answers that never resolved the head check
     except RuntimeError as exc:
+        yield from emit_sources()
         yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
         return
     yield f"event: done\ndata: {json.dumps({'declined': declined})}\n\n"

@@ -24,6 +24,17 @@ def client(monkeypatch):
         yield c
 
 
+def _sse_sources(resp):
+    """Return the parsed `sources` event payload, or None if absent."""
+    for chunk in resp.text.split("\n\n"):
+        lines = chunk.splitlines()
+        if lines and lines[0].strip() == "event: sources":
+            for line in lines[1:]:
+                if line.startswith("data:"):
+                    return json.loads(line[5:].strip())["sources"]
+    return None
+
+
 def _sse_text(resp):
     """Collect all `token` payloads from an SSE response body."""
     out = []
@@ -135,6 +146,49 @@ def test_chat_stream_emits_sources_then_done(client, monkeypatch):
     assert "event: sources" in res.text
     assert "event: done" in res.text
     assert len(_sse_text(res)) > 0
+
+
+def test_chat_stream_refusal_suppresses_sources(client, monkeypatch):
+    """A model-level refusal (hits retrieved, LLM emits [DECLINED]) must not
+    leak citations over SSE: the sources event carries an empty list,
+    matching /chat/sync. Regression: sources used to be emitted before the
+    marker decision was known."""
+    hits = [{
+        "document_id": "d1", "filename": "n.pdf", "title": "N",
+        "chunk_index": 0, "page_start": 1, "page_end": 1,
+        "content": "c", "similarity": 0.9,
+    }]
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    # chunk the marker across tokens to prove prefix detection still works
+    monkeypatch.setattr(
+        routes_module, "stream_chat",
+        lambda q, ctx: iter(["[DECL", "INED] not in the provided context"]),
+    )
+    res = client.post("/api/chat", json={"question": "q"})
+    assert res.status_code == 200
+    assert _sse_sources(res) == []
+    text = _sse_text(res)
+    assert "[DECLINED]" not in text
+    assert "not in the provided context" in text
+    assert '"declined": true' in res.text
+
+
+def test_chat_stream_normal_answer_carries_sources(client, monkeypatch):
+    hits = [{
+        "document_id": "d1", "filename": "n.pdf", "title": "N",
+        "chunk_index": 0, "page_start": 1, "page_end": 1,
+        "content": "c", "similarity": 0.9,
+    }]
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(
+        routes_module, "stream_chat",
+        lambda q, ctx: iter(["Photosynthesis happens in chloroplasts [1]."]),
+    )
+    res = client.post("/api/chat", json={"question": "q"})
+    assert res.status_code == 200
+    srcs = _sse_sources(res)
+    assert srcs and srcs[0]["filename"] == "n.pdf"
+    assert '"declined": false' in res.text
 
 
 def test_knowledge_bytes_mock_streams_skeleton(client):
