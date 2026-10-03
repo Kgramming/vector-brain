@@ -1,46 +1,44 @@
 <template>
-  <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="$emit('close')">
-    <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
-      <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+  <div class="vb-modal-backdrop" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Knowledge Bytes explainer">
+    <div class="vb-modal vb-kb-modal">
+      <div class="vb-kb-head">
         <div>
-          <h2 class="font-semibold text-slate-800">Knowledge Bytes</h2>
-          <p class="text-xs text-slate-500">Paste code or technical text — get architecture-first 10-second explainers.</p>
+          <h2>Knowledge Bytes</h2>
+          <p>Paste code or technical text — get architecture-first 10-second explainers.</p>
         </div>
-        <button @click="$emit('close')" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button>
+        <button class="vb-btn vb-btn-ghost vb-btn-icon" @click="$emit('close')" aria-label="Close">
+          <VbIcon name="x" :size="18" />
+        </button>
       </div>
 
-      <div class="space-y-3 overflow-y-auto px-5 py-4">
+      <div class="vb-kb-body">
+        <label class="vb-label" for="kb-content">Content to explain</label>
         <textarea
-          v-model="content"
-          rows="6"
+          id="kb-content" v-model="content" rows="6"
           placeholder="Paste code, a config file, an error trace, or any technical content…"
-          class="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 font-mono text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          class="vb-textarea vb-kb-mono"
         ></textarea>
-        <div class="flex gap-2">
-          <input
-            v-model="language"
-            placeholder="Language (optional, e.g. python)"
-            class="w-1/2 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          />
-          <input
-            v-model="contextNote"
-            placeholder="Context (optional, e.g. auth module)"
-            class="w-1/2 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          />
+        <div class="vb-kb-row">
+          <div>
+            <label class="vb-label" for="kb-lang">Language <span class="vb-optional">(optional)</span></label>
+            <input id="kb-lang" v-model="language" placeholder="e.g. python" class="vb-input" />
+          </div>
+          <div>
+            <label class="vb-label" for="kb-ctx">Context <span class="vb-optional">(optional)</span></label>
+            <input id="kb-ctx" v-model="contextNote" placeholder="e.g. auth module" class="vb-input" />
+          </div>
         </div>
-        <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{{ error }}</p>
-        <div v-if="result || busy" class="rounded-xl bg-slate-900 p-4">
-          <pre class="whitespace-pre-wrap font-mono text-xs leading-relaxed text-emerald-100">{{ result }}<span v-if="busy" class="animate-pulse">▍</span></pre>
+        <p v-if="error" class="vb-kb-error" role="alert">{{ error }}</p>
+        <div v-if="result || busy" class="vb-kb-result">
+          <pre>{{ result }}<span v-if="busy" class="vb-caret" /></pre>
         </div>
       </div>
 
-      <div class="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
-        <button @click="$emit('close')" class="rounded-xl px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Close</button>
-        <button
-          @click="generate"
-          :disabled="busy || !content.trim()"
-          class="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
-        >{{ busy ? 'Explaining…' : '⚡ Generate Bytes' }}</button>
+      <div class="vb-kb-foot">
+        <button class="vb-btn vb-btn-secondary" @click="$emit('close')">Close</button>
+        <button class="vb-btn vb-btn-primary" @click="generate" :disabled="busy || !content.trim()">
+          <VbIcon name="zap" :size="15" /> {{ busy ? 'Explaining…' : 'Generate Bytes' }}
+        </button>
       </div>
     </div>
   </div>
@@ -48,9 +46,9 @@
 
 <script setup>
 import { ref } from 'vue';
+import VbIcon from './VbIcon.vue';
 import { streamKnowledgeBytes } from '../services/api.js';
 
-defineProps({ open: { type: Boolean, default: false } });
 defineEmits(['close']);
 
 const content = ref('');
@@ -79,3 +77,32 @@ async function generate() {
   }
 }
 </script>
+
+<style scoped>
+.vb-kb-modal { max-width: 640px; max-height: 88vh; display: flex; flex-direction: column; }
+.vb-kb-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 22px 0; }
+.vb-kb-head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.vb-kb-head p { margin: 0; font-size: 13px; color: var(--text-2); }
+.vb-kb-body { padding: 18px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.vb-kb-mono { font-family: var(--font-mono); font-size: 12.5px; }
+.vb-kb-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vb-optional { font-weight: 400; color: var(--text-3); }
+.vb-kb-error {
+  margin: 0; padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--danger-soft); color: var(--danger); font-size: 13px;
+}
+.vb-kb-result {
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 16px; max-height: 320px; overflow-y: auto;
+}
+.vb-kb-result pre {
+  margin: 0; white-space: pre-wrap; font: 400 12.5px/1.7 var(--font-mono); color: var(--text-1);
+}
+.vb-caret {
+  display: inline-block; width: 8px; height: 15px; margin-left: 3px;
+  background: var(--accent); border-radius: 2px; vertical-align: -2px;
+  animation: vb-pulse-dot 1s ease-in-out infinite;
+}
+.vb-kb-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px 20px; border-top: 1px solid var(--border); }
+@media (max-width: 560px) { .vb-kb-row { grid-template-columns: 1fr; } }
+</style>
