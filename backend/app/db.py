@@ -28,10 +28,11 @@ def get_pool() -> ConnectionPool:
         settings = get_settings()
         # autocommit=True: each statement is its own transaction; the API
         # layer keeps writes small and independent, so this keeps the code
-        # simple without a unit-of-work abstraction.
+        # simple without a unit-of-work abstraction. (Passed via kwargs:
+        # psycopg_pool forwards them to each new connection.)
         _pool = ConnectionPool(
-            settings.DATABASE_URL, min_size=1, max_size=10, autocommit=True,
-            kwargs={"row_factory": dict_row},
+            settings.DATABASE_URL, min_size=1, max_size=10,
+            kwargs={"row_factory": dict_row, "autocommit": True},
         )
     return _pool
 

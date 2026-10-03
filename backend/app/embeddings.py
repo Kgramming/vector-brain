@@ -36,19 +36,21 @@ def _load_model():
 
 def _mock_embed(texts: Sequence[str], dim: int) -> list[list[float]]:
     """
-    Deterministic pseudo-embeddings: hash text into `dim` buckets, L2-normalize.
-    Similar texts share hash buckets more often than unrelated ones, which is
-    enough to exercise retrieval ranking in tests.
+    Deterministic pseudo-embeddings: one binary hash bucket per token,
+    L2-normalized. Related texts share tokens and therefore buckets, which is
+    enough to exercise retrieval ranking in tests. (One bucket per token keeps
+    the 384-dim space sparse so unrelated texts stay near-orthogonal.)
     """
     out: list[list[float]] = []
     for text in texts:
-        vec = [0.0] * dim
-        tokens = text.lower().split()
-        for tok in tokens:
+        buckets = set()
+        for tok in text.lower().split():
             h = int(hashlib.sha256(tok.encode()).hexdigest(), 16)
-            for i in range(4):  # spread each token over 4 buckets
-                vec[(h >> (i * 16)) % dim] += 1.0
-        norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+            buckets.add(h % dim)
+        vec = [0.0] * dim
+        for b in buckets:
+            vec[b] = 1.0
+        norm = math.sqrt(len(buckets)) or 1.0
         out.append([v / norm for v in vec])
     return out
 
