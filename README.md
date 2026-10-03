@@ -2,8 +2,6 @@
 
 A **"second brain" for studying**: upload multiple PDFs, ask questions across
 all of them, and get streaming answers with **citations** to the exact passages.
-Plus **Knowledge Bytes** — architecture-first, 10-second explainers for code and
-technical content.
 
 ```
 PDFs → Docling → chunks → 384-dim embeddings → PostgreSQL + pgvector
@@ -12,18 +10,42 @@ PDFs → Docling → chunks → 384-dim embeddings → PostgreSQL + pgvector
 
 ## Features
 
-- **Multi-PDF library** — drag-drop upload, Docling parsing with page provenance,
-  background ingestion with live status, sha256 dedupe, delete cascades to chunks
+- **Home dashboard** — stats (documents, pages, chunks), recent documents and
+  questions, onboarding empty state
+- **Library** — grid/list views, search, sort, filter, favorites, document cards
+  with live indexing status; drag-drop upload with an animated
+  Upload → Docling → Chunk → Embed → Index pipeline
+- **Notebook** — document scope selector, markdown answers, clickable **[1]**
+  citations, collapsible source panel (page, relevance, excerpt), example
+  prompts, conversation history, `⌘/Ctrl+↵` to send
 - **Semantic search Q&A** — 384-dim embeddings (all-MiniLM-L6-v2), pgvector cosine
-  search across *all* documents, similarity threshold, streaming answers
+  search across *all* documents (or a selected subset via `document_ids`),
+  similarity threshold, streaming answers
 - **Trustworthy citations** — numbered sources with excerpts, page numbers and
   similarity scores; refusals (`[DECLINED]`) are detected server-side and carry
   **no** citations
-- **Knowledge Bytes** — paste code → streaming BYTE N explainers
-  (ROLE / FLOW / CONNECTS TO / WHY / KEY CODE → PUTTING IT TOGETHER)
+- **Themes** — Light, Dark, Midnight, High Contrast + 6 accent colors, density
+  and motion preferences, all persisted locally
+- **Knowledge Bytes** — architecture-first, 10-second code explainers, available
+  as a quiet action inside the Notebook (not a primary destination)
 - **Mock modes** — run the full app and test suite with no Groq key, no model
   download, no network
 - **Tested** — backend pytest suite (unit + real-DB integration), frontend unit tests
+
+## Demo PDFs
+
+`demo-pdfs/` ships three realistic study documents for a first-run demo:
+
+| File | Covers |
+|---|---|
+| `Introduction_to_Machine_Learning.pdf` (8 pp.) | supervised learning, regression, classification, overfitting, evaluation |
+| `Neural_Networks_and_Deep_Learning.pdf` (9 pp.) | neurons, activations, backpropagation, optimization, CNNs |
+| `Machine_Learning_Evaluation.pdf` (9 pp.) | precision/recall, F1, ROC-AUC, confusion matrix |
+
+Upload all three, then try: *"How does backpropagation relate to gradient
+descent?"* or *"Compare precision and recall — when does each matter?"*
+Answers cite across documents. See [`docs/DEMO.md`](docs/DEMO.md) for the
+full 5-minute script.
 
 ## Quickstart
 
@@ -122,7 +144,9 @@ vector-brain/
 │   ├── migrations/001_init.sql   # PostgreSQL + pgvector schema
 │   ├── tests/              # pytest: unit (mocked) + DB integration
 │   └── requirements.txt
-├── frontend/               # Vue 3 + Vite + Tailwind: Library, Notebook, Knowledge Bytes
+├── frontend/               # Vue 3 + Vite: app shell, Home, Library, Notebook,
+│                           # Favorites, Recent, Settings, Profile, theming
+├── demo-pdfs/              # 3 realistic study PDFs for first-run demos
 ├── docs/                   # architecture, API, demo, evaluation
 ├── scripts/setup_db.sh
 ├── docker-compose.yml      # postgres:16 + pgvector, one command
