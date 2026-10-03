@@ -94,3 +94,39 @@ def test_vector_dimension_enforced(conn):
             {"chunk_index": 0, "page_start": 1, "page_end": 1,
              "content": "x", "embedding": [0.1] * 128},  # wrong dim
         ])
+
+
+@needs_db
+def test_search_chunks_document_ids_filter_real_pgvector(conn):
+    """Real pgvector binding: vector literal -> ::vector, ids -> ::uuid[].
+
+    Regression test for the InvalidTextRepresentation crash
+    ("malformed array literal ... Missing ] after array dimensions")
+    caused by misordered positional params when document_ids was used.
+    """
+    def make_doc(name, seed):
+        doc = db.create_document(name, name, 100, "sha-" + uuid.uuid4().hex)
+        db.insert_chunks(str(doc["id"]), [
+            {"chunk_index": 0, "page_start": 1, "page_end": 1,
+             "content": f"content of {name}", "embedding": _vec(seed)},
+        ])
+        db.mark_document_ready(str(doc["id"]), 1, 1, 20)
+        return doc
+
+    doc_a = make_doc("a.pdf", 11)
+    doc_b = make_doc("b.pdf", 22)
+
+    # unfiltered: both documents searchable
+    hits_all = db.search_chunks(_vec(11), top_k=10)
+    assert {h["document_id"] for h in hits_all} == {doc_a["id"], doc_b["id"]}
+
+    # filtered: only doc_b's chunks, even though the query is closest to doc_a
+    hits_b = db.search_chunks(_vec(11), top_k=10, document_ids=[str(doc_b["id"])])
+    assert len(hits_b) == 1
+    assert hits_b[0]["document_id"] == doc_b["id"]
+    assert hits_b[0]["filename"] == "b.pdf"
+
+    # multiple ids
+    hits_ab = db.search_chunks(
+        _vec(11), top_k=10, document_ids=[str(doc_a["id"]), str(doc_b["id"])])
+    assert {h["document_id"] for h in hits_ab} == {doc_a["id"], doc_b["id"]}

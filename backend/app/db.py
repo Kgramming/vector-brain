@@ -158,11 +158,14 @@ def search_chunks(
     """
     q = _vec_literal(query_embedding)
     where = "WHERE d.status = 'ready'"
-    params: list = [q, q]
+    # Params must follow placeholder order in the query below:
+    #   1. %s::vector (SELECT)  2. %s::uuid[] (WHERE, when filtering)
+    #   3. %s::vector (ORDER BY)  4. LIMIT %s
+    params: list = [q]
     if document_ids:
         where += " AND c.document_id = ANY(%s::uuid[])"
         params.append(list(document_ids))
-    params.append(top_k)
+    params.extend([q, top_k])
     with cursor() as cur:
         cur.execute(
             f"""
