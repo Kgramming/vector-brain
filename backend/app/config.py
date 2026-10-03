@@ -39,7 +39,10 @@ class Settings(BaseSettings):
 
     # --- App ---
     APP_NAME: str = "Vector-Brain"
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    CORS_ORIGINS: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:5174,http://127.0.0.1:5174"
+    )
 
     @property
     def mock_groq(self) -> bool:

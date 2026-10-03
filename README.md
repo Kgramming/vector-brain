@@ -100,6 +100,24 @@ npm install
 npm run dev        # http://localhost:5173  (proxies /api → :8000)
 ```
 
+### Ports & connecting the two
+
+Defaults: frontend `:5173` → backend `:8000` via the Vite dev proxy
+(`VB_BACKEND_URL` overrides the proxy target). CORS allows
+`:5173`/`:5174` on both `localhost` and `127.0.0.1`
+(override with `CORS_ORIGINS` in `backend/.env`).
+
+If your backend runs on a different port, e.g. `:8001`:
+
+```bash
+# option A — dev proxy (recommended):
+VB_BACKEND_URL=http://127.0.0.1:8001 npm run dev
+
+# option B — browser talks to the backend directly (needs CORS, already
+# includes :5173/:5174; no proxy involved):
+# frontend/.env:  VITE_API_URL=http://127.0.0.1:8001
+```
+
 ## Configuration
 
 All settings via environment (see [`.env.example`](.env.example)):

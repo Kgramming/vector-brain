@@ -9,6 +9,11 @@ function url(path) {
   return `${BASE}${path}`;
 }
 
+/** Absolute URL for an API path, respecting VITE_API_URL (for XHR callers). */
+export function apiUrl(path) {
+  return url(path);
+}
+
 async function check(res) {
   if (!res.ok) {
     let detail = res.statusText;

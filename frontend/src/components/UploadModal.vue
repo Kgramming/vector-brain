@@ -84,7 +84,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue';
 import VbIcon from './VbIcon.vue';
-import { uploadDocument, listDocuments } from '../services/api.js';
+import { listDocuments, apiUrl } from '../services/api.js';
 import { formatBytes } from '../utils/format.js';
 import { useToasts } from '../composables/useToasts.js';
 
@@ -151,7 +151,7 @@ function startUpload(entry) {
   entry.state = 'uploading';
   entry.stageIndex = 0;
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/documents');
+  xhr.open('POST', apiUrl('/api/documents'));
   xhr.upload.onprogress = (e) => {
     if (e.lengthComputable) entry.progress = Math.round((e.loaded / e.total) * 100);
   };
