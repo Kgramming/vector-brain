@@ -146,26 +146,37 @@ def insert_chunks(doc_id: str, chunks: Sequence[dict]) -> None:
         )
 
 
-def search_chunks(query_embedding: Sequence[float], top_k: int) -> list[dict]:
+def search_chunks(
+    query_embedding: Sequence[float],
+    top_k: int,
+    document_ids: Sequence[str] | None = None,
+) -> list[dict]:
     """
-    Cosine-similarity search across ALL documents.
+    Cosine-similarity search. Across ALL ready documents by default; when
+    document_ids is given, restricted to those documents (Notebook scope).
     pgvector's <=> is cosine distance; similarity = 1 - distance.
     """
     q = _vec_literal(query_embedding)
+    where = "WHERE d.status = 'ready'"
+    params: list = [q, q]
+    if document_ids:
+        where += " AND c.document_id = ANY(%s::uuid[])"
+        params.append(list(document_ids))
+    params.append(top_k)
     with cursor() as cur:
         cur.execute(
-            """
+            f"""
             SELECT c.id, c.document_id, c.chunk_index, c.page_start, c.page_end,
                    c.content,
                    d.filename, d.title,
                    1 - (c.embedding <=> %s::vector) AS similarity
             FROM chunks c
             JOIN documents d ON d.id = c.document_id
-            WHERE d.status = 'ready'
+            {where}
             ORDER BY c.embedding <=> %s::vector
             LIMIT %s
             """,
-            (q, q, top_k),
+            params,
         )
         return cur.fetchall()
 

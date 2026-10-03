@@ -28,7 +28,7 @@ def test_retrieve_threshold_filters(monkeypatch):
     # fake DB hits: one above threshold, one below
     monkeypatch.setattr(
         retrieval.db, "search_chunks",
-        lambda qvec, k: [_hit(0, sim=0.9), _hit(1, sim=0.05)],
+        lambda qvec, k, doc_ids=None: [_hit(0, sim=0.9), _hit(1, sim=0.05)],
     )
     hits = retrieval.retrieve("anything about vectors")
     assert len(hits) == 1
@@ -38,10 +38,33 @@ def test_retrieve_threshold_filters(monkeypatch):
 def test_retrieve_respects_top_k(monkeypatch):
     monkeypatch.setattr(
         retrieval.db, "search_chunks",
-        lambda qvec, k: [_hit(i, sim=0.9 - i * 0.01) for i in range(10)],
+        lambda qvec, k, doc_ids=None: [_hit(i, sim=0.9 - i * 0.01) for i in range(10)],
     )
     hits = retrieval.retrieve("q", top_k=3)
     assert len(hits) == 3
+
+
+def test_retrieve_passes_document_ids(monkeypatch):
+    seen = {}
+
+    def fake_search(qvec, k, doc_ids=None):
+        seen["doc_ids"] = doc_ids
+        return [_hit(0, sim=0.9)]
+
+    monkeypatch.setattr(retrieval.db, "search_chunks", fake_search)
+    hits = retrieval.retrieve("q", document_ids=["d0"])
+    assert len(hits) == 1
+    assert seen["doc_ids"] == ["d0"]
+
+
+def test_retrieve_document_ids_default_none(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        retrieval.db, "search_chunks",
+        lambda qvec, k, doc_ids=None: seen.update(doc_ids=doc_ids) or [_hit(0, sim=0.9)],
+    )
+    retrieval.retrieve("q")
+    assert seen["doc_ids"] is None
 
 
 def test_knowledge_bytes_prompt_has_architecture_first_format():

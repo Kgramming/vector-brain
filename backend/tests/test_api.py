@@ -102,7 +102,7 @@ def test_chat_sync_attaches_sources(client, monkeypatch):
         "chunk_index": 0, "page_start": 2, "page_end": 2,
         "content": "photosynthesis happens in chloroplasts", "similarity": 0.85,
     }]
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: hits)
     res = client.post("/api/chat/sync", json={"question": "Where does photosynthesis happen?"})
     assert res.status_code == 200
     body = res.json()
@@ -113,10 +113,36 @@ def test_chat_sync_attaches_sources(client, monkeypatch):
 
 
 def test_chat_sync_no_hits_declines_without_sources(client, monkeypatch):
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: [])
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: [])
     body = client.post("/api/chat/sync", json={"question": "unrelated?"}).json()
     assert body["declined"] is True
     assert body["sources"] == []
+
+
+def test_chat_sync_forwards_document_ids(client, monkeypatch):
+    seen = {}
+
+    def fake_retrieve(q, top_k=None, document_ids=None):
+        seen["document_ids"] = document_ids
+        return []
+
+    monkeypatch.setattr(routes_module, "retrieve", fake_retrieve)
+    body = client.post(
+        "/api/chat/sync",
+        json={"question": "q?", "document_ids": ["d1", "d2"]},
+    ).json()
+    assert body["declined"] is True  # no hits -> decline path
+    assert seen["document_ids"] == ["d1", "d2"]
+
+
+def test_chat_sync_document_ids_optional(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        routes_module, "retrieve",
+        lambda q, top_k=None, document_ids=None: seen.update(ids=document_ids) or [],
+    )
+    client.post("/api/chat/sync", json={"question": "q?"})
+    assert seen["ids"] is None
 
 
 def test_chat_sync_refusal_suppresses_sources(client, monkeypatch):
@@ -125,7 +151,7 @@ def test_chat_sync_refusal_suppresses_sources(client, monkeypatch):
         "chunk_index": 0, "page_start": 1, "page_end": 1,
         "content": "something", "similarity": 0.9,
     }]
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: hits)
     monkeypatch.setattr(routes_module, "chat_once", lambda q, ctx: "[DECLINED] not in context")
     body = client.post("/api/chat/sync", json={"question": "q"}).json()
     assert body["declined"] is True
@@ -139,7 +165,7 @@ def test_chat_stream_emits_sources_then_done(client, monkeypatch):
         "chunk_index": 0, "page_start": 1, "page_end": 1,
         "content": "c", "similarity": 0.9,
     }]
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: hits)
     res = client.post("/api/chat", json={"question": "q"})
     assert res.status_code == 200
     assert "text/event-stream" in res.headers["content-type"]
@@ -158,7 +184,7 @@ def test_chat_stream_refusal_suppresses_sources(client, monkeypatch):
         "chunk_index": 0, "page_start": 1, "page_end": 1,
         "content": "c", "similarity": 0.9,
     }]
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: hits)
     # chunk the marker across tokens to prove prefix detection still works
     monkeypatch.setattr(
         routes_module, "stream_chat",
@@ -179,7 +205,7 @@ def test_chat_stream_normal_answer_carries_sources(client, monkeypatch):
         "chunk_index": 0, "page_start": 1, "page_end": 1,
         "content": "c", "similarity": 0.9,
     }]
-    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None: hits)
+    monkeypatch.setattr(routes_module, "retrieve", lambda q, top_k=None, document_ids=None: hits)
     monkeypatch.setattr(
         routes_module, "stream_chat",
         lambda q, ctx: iter(["Photosynthesis happens in chloroplasts [1]."]),

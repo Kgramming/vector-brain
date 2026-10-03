@@ -37,6 +37,7 @@ settings = get_settings()
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     top_k: int | None = Field(default=None, ge=1, le=20)
+    document_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class ChatSyncResponse(BaseModel):
@@ -210,7 +211,7 @@ def chat(req: ChatRequest):
     question = req.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is empty")
-    hits = retrieve(question, top_k=req.top_k)
+    hits = retrieve(question, top_k=req.top_k, document_ids=req.document_ids)
     if not hits:
         # No evidence: answer the refusal path without calling the model.
         def _declined():
@@ -228,7 +229,7 @@ def chat_sync(req: ChatRequest):
     question = req.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is empty")
-    hits = retrieve(question, top_k=req.top_k)
+    hits = retrieve(question, top_k=req.top_k, document_ids=req.document_ids)
     if not hits:
         return ChatSyncResponse(
             answer="I couldn’t find anything about that in your documents. Try uploading the relevant PDF first.",

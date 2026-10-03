@@ -12,11 +12,15 @@ from .config import get_settings
 from .embeddings import embed_query
 
 
-def retrieve(question: str, top_k: int | None = None) -> list[dict]:
+def retrieve(
+    question: str,
+    top_k: int | None = None,
+    document_ids: list[str] | None = None,
+) -> list[dict]:
     settings = get_settings()
     top_k = top_k or settings.TOP_K
     qvec = embed_query(question)
-    hits = db.search_chunks(qvec, top_k * 2)  # over-fetch, then threshold
+    hits = db.search_chunks(qvec, top_k * 2, document_ids)  # over-fetch, then threshold
     kept = [h for h in hits if h["similarity"] >= settings.SCORE_THRESHOLD]
     return kept[:top_k]
 

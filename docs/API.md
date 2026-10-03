@@ -56,7 +56,9 @@ Returns `{ "deleted": "uuid" }`.
 
 ### POST /api/chat — streaming answer (SSE)
 
-Body: `{ "question": "…", "top_k": 6 }` (`top_k` optional, 1–20).
+Body: `{ "question": "…", "top_k": 6, "document_ids": ["uuid", …] }`
+(`top_k` optional, 1–20; `document_ids` optional — restrict retrieval to those
+documents, e.g. the Notebook's document selector. Omitted = search all.)
 
 Event stream:
 
@@ -81,7 +83,7 @@ data: {"declined": false}
 
 ### POST /api/chat/sync — non-streaming answer
 
-Same body. Response:
+Same body (`question`, optional `top_k`, optional `document_ids`). Response:
 
 ```json
 {
