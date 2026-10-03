@@ -1,0 +1,20 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vectorbrain-postgres
+    environment:
+      POSTGRES_USER: vectorbrain
+      POSTGRES_PASSWORD: vectorbrain
+      POSTGRES_DB: vectorbrain
+    ports:
+      - "5432:5432"
+    volumes:
+      - vectorbrain-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vectorbrain -d vectorbrain"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  vectorbrain-pgdata:
