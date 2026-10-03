@@ -54,6 +54,22 @@ uvicorn app.main:app --reload --port 8000
 > First run downloads the embedding model (~90 MB) and applies DB migrations
 > automatically. Without `GROQ_API_KEY` the API runs in clearly-labeled mock mode.
 
+### Heavy dependencies (Docling)
+
+`requirements.txt` includes Docling (PDF parsing) and sentence-transformers,
+which pull in PyTorch. On a CPU-only machine, install the CPU wheel **first**
+to avoid the multi-GB CUDA build:
+
+```bash
+pip install "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+```
+
+Docling also downloads its layout/OCR models (~1 GB) into `~/.cache/docling`
+on first PDF parse — this happens inside the background ingestion task, so
+the first upload takes longer. The unit test suite never needs these:
+it runs fully offline with `MOCK_EMBEDDINGS=true`.
+
 ### 3. Frontend
 
 ```bash
