@@ -8,7 +8,7 @@ pydantic-settings==2.7.0
 python-multipart==0.0.20
 
 # PostgreSQL (psycopg3) — pgvector is used via raw SQL, no ORM needed
-"psycopg[binary,pool]==3.2.3"
+psycopg[binary,pool]==3.2.3
 
 # PDF parsing -> structured text
 docling==2.32.0
