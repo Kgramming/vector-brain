@@ -30,6 +30,9 @@
         <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="newChat">
           <VbIcon name="plus" :size="14" /> New chat
         </button>
+        <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="historyOpen = true" title="Browse previous conversations">
+          <VbIcon name="clock" :size="14" /> History
+        </button>
       </div>
     </aside>
 
@@ -141,6 +144,15 @@
         </article>
       </div>
     </aside>
+
+    <ChatHistoryModal
+      v-if="historyOpen"
+      :conversations="conversations"
+      :current-id="currentConvoId"
+      @close="historyOpen = false"
+      @open="openConversation"
+      @delete="deleteConversation"
+    />
   </div>
 </template>
 
@@ -152,6 +164,7 @@ import { renderMarkdown, bindCitations } from '../utils/markdown.js';
 import { shortName, pageLabel, relevanceLabel, filterSourcesToCited } from '../utils/format.js';
 import { useRecents, useChatHistory, usePrefs } from '../composables/usePrefs.js';
 import { useToasts } from '../composables/useToasts.js';
+import ChatHistoryModal from '../components/ChatHistoryModal.vue';
 
 const props = defineProps({
   documents: { type: Array, default: () => [] },
@@ -162,7 +175,7 @@ const props = defineProps({
 const emit = defineEmits(['upload']);
 
 const { pushQuestion } = useRecents();
-const { saveConversation } = useChatHistory();
+const { conversations, saveConversation, removeConversation } = useChatHistory();
 const { notebookPrefs } = usePrefs();
 const { error: toastError } = useToasts();
 
@@ -170,6 +183,8 @@ const readyDocs = computed(() => props.documents.filter(d => d.status === 'ready
 const selectedIds = ref(new Set());
 const scopeOpen = ref(true);
 const sourcesOpen = ref(true);
+const historyOpen = ref(false);
+const currentConvoId = ref(null);
 
 const messages = ref([]);
 const draft = ref('');
@@ -265,21 +280,79 @@ function askExample(p) {
   send();
 }
 
+function snapshotMessages() {
+  return messages.value.map(m => ({
+    role: m.role,
+    content: m.content,
+    sources: m.sources || [],
+    declined: !!m.declined,
+  }));
+}
+
+function scopeIdsOrNull() {
+  // null = all documents in scope; otherwise the explicit selection
+  return allSelected.value ? null : [...selectedIds.value];
+}
+
+/** Persist the current conversation (upsert by id). Called after each answer. */
+function persistCurrent() {
+  if (!messages.value.length) return;
+  if (!currentConvoId.value) currentConvoId.value = 'c' + Date.now();
+  const firstUser = messages.value.find(m => m.role === 'user');
+  saveConversation({
+    id: currentConvoId.value,
+    title: firstUser ? firstUser.content.slice(0, 60) : 'Conversation',
+    at: Date.now(),
+    scopeIds: scopeIdsOrNull(),
+    messages: snapshotMessages(),
+  });
+  try { localStorage.setItem('vb:currentConvoId', currentConvoId.value); } catch { /* ignore */ }
+}
+
 function newChat() {
-  if (messages.value.length) {
-    const firstUser = messages.value.find(m => m.role === 'user');
-    saveConversation({
-      id: 'c' + Date.now(),
-      title: firstUser ? firstUser.content.slice(0, 60) : 'Conversation',
-      at: Date.now(),
-      messages: messages.value.map(m => ({ role: m.role, content: m.content, sources: m.sources, declined: m.declined })),
-    });
-  }
+  persistCurrent();
   messages.value = [];
+  currentConvoId.value = null;
+  try { localStorage.removeItem('vb:currentConvoId'); } catch { /* ignore */ }
   activeMsg.value = null;
   activeRank.value = null;
   error.value = '';
   nextTick(() => inputEl.value?.focus());
+}
+
+function openConversation(conv) {
+  persistCurrent();
+  messages.value = (conv.messages || []).map(m => ({
+    role: m.role,
+    content: m.content || '',
+    sources: m.sources || [],
+    declined: !!m.declined,
+    streaming: false,
+  }));
+  currentConvoId.value = conv.id;
+  // restore the document scope used by this conversation (if docs still exist)
+  if (Array.isArray(conv.scopeIds)) {
+    const valid = new Set(readyDocs.value.map(d => d.id));
+    const ids = conv.scopeIds.filter(id => valid.has(id));
+    if (ids.length) selectedIds.value = new Set(ids);
+  } else if (conv.scopeIds === null) {
+    selectedIds.value = new Set(readyDocs.value.map(d => d.id));
+  }
+  activeMsg.value = null;
+  activeRank.value = null;
+  error.value = '';
+  historyOpen.value = false;
+  nextTick(() => { scrollBox.value?.scrollTo({ top: 0 }); inputEl.value?.focus(); });
+}
+
+function deleteConversation(id) {
+  removeConversation(id);
+  if (currentConvoId.value === id) {
+    currentConvoId.value = null;
+    messages.value = [];
+    activeMsg.value = null;
+    activeRank.value = null;
+  }
 }
 
 async function send() {
@@ -315,6 +388,7 @@ async function send() {
         busy.value = false;
         streamingMsg.value = false;
         pushQuestion(q, ans.declined);
+        persistCurrent();
         scrollDown();
       },
       onError: (e) => { throw e; },
@@ -345,6 +419,20 @@ watch(() => props.presetQuestion, (q) => {
 
 onMounted(() => {
   if (window.innerWidth < 1100) { scopeOpen.value = false; sourcesOpen.value = false; }
+  // restore the in-progress conversation across page refreshes
+  try {
+    const cid = localStorage.getItem('vb:currentConvoId');
+    if (cid) {
+      const conv = conversations.value.find(c => c.id === cid);
+      if (conv?.messages?.length) {
+        messages.value = conv.messages.map(m => ({
+          role: m.role, content: m.content || '', sources: m.sources || [],
+          declined: !!m.declined, streaming: false,
+        }));
+        currentConvoId.value = conv.id;
+      }
+    }
+  } catch { /* ignore */ }
   nextTick(() => inputEl.value?.focus());
 });
 </script>
@@ -394,11 +482,11 @@ onMounted(() => {
 .vb-scope-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vb-scope-empty { font-size: 12.5px; color: var(--text-3); line-height: 1.6; padding: 8px; }
 .vb-link { background: none; border: 0; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; font-size: inherit; }
-.vb-scope-foot { margin-top: auto; padding-top: 14px; display: flex; gap: 8px; }
+.vb-scope-foot { margin-top: auto; padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 .vb-scope-toggle { display: none; }
 
 /* ---- center: chat ---- */
-.vb-chat { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+.vb-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
 .vb-chat-head {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 18px; border-bottom: 1px solid var(--border);

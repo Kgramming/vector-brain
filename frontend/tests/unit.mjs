@@ -9,6 +9,8 @@
 
 import assert from 'node:assert/strict';
 
+import { citedRanks, filterSourcesToCited } from '../src/utils/format.js';
+
 // --- replicate the client's shortName helper (ChatPanel.vue) ---
 function shortName(title) {
   const t = title || 'doc';
@@ -77,6 +79,71 @@ test('SSE error event parses', () => {
   const [e] = parseSSE(raw);
   assert.equal(e.event, 'error');
   assert.match(e.data.detail, /Groq/);
+});
+
+// --- citation/source consistency (utils/format.js) ---
+
+test('citedRanks extracts [n] markers', () => {
+  const ranks = citedRanks('Precision matters [1] and recall too [3].');
+  assert.deepEqual([...ranks].sort(), [1, 3]);
+});
+
+test('citedRanks dedupes repeats', () => {
+  const ranks = citedRanks('[2] again [2] and [10].');
+  assert.deepEqual([...ranks].sort((a, b) => a - b), [2, 10]);
+});
+
+test('citedRanks ignores non-citations', () => {
+  assert.deepEqual([...citedRanks('no markers here')], []);
+  assert.deepEqual([...citedRanks('')], []);
+  assert.deepEqual([...citedRanks(null)], []);
+});
+
+test('filterSourcesToCited keeps only cited sources', () => {
+  const sources = [
+    { rank: 1, title: 'a.pdf' },
+    { rank: 2, title: 'b.pdf' },
+    { rank: 3, title: 'c.pdf' },
+  ];
+  const kept = filterSourcesToCited(sources, 'See [1] and [3].');
+  assert.deepEqual(kept.map(s => s.rank), [1, 3]);
+});
+
+test('filterSourcesToCited drops everything when nothing cited', () => {
+  const sources = [{ rank: 1, title: 'a.pdf' }];
+  assert.deepEqual(filterSourcesToCited(sources, 'No citations here.'), []);
+});
+
+// --- chat-history upsert logic mirrors useChatHistory.saveConversation ---
+
+function upsertConversation(list, conv) {
+  return [conv, ...list.filter(c => c.id !== conv.id)].slice(0, 30);
+}
+
+test('history upsert adds new conversation first', () => {
+  const list = upsertConversation([], { id: 'c1', title: 'Q1', messages: [] });
+  assert.equal(list.length, 1);
+  assert.equal(list[0].id, 'c1');
+});
+
+test('history upsert updates existing conversation in place', () => {
+  const list = [
+    { id: 'c2', title: 'Q2', messages: [{ role: 'user', content: 'Q2' }] },
+    { id: 'c1', title: 'Q1', messages: [{ role: 'user', content: 'Q1' }] },
+  ];
+  const updated = upsertConversation(list, {
+    id: 'c1', title: 'Q1', messages: [{ role: 'user', content: 'Q1' }, { role: 'assistant', content: 'A1' }],
+  });
+  assert.equal(updated.length, 2);
+  assert.equal(updated[0].id, 'c1');
+  assert.equal(updated[0].messages.length, 2);
+});
+
+test('history upsert caps at 30 conversations', () => {
+  let list = [];
+  for (let i = 0; i < 35; i++) list = upsertConversation(list, { id: 'c' + i, title: 't' });
+  assert.equal(list.length, 30);
+  assert.equal(list[0].id, 'c34');
 });
 
 console.log(`\n${passed} tests passed`);
