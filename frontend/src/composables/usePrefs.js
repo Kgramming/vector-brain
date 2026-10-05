@@ -75,11 +75,23 @@ export function useRecents() {
 
 /* ------------------------------ chat history ------------------------------ */
 
-const conversations = ref(loadJSON('conversations', [])); // [{id, title, at, messages: [{role, content, sources, declined}]}]
+const conversations = ref(loadJSON('conversations', [])); // [{id, title, at, scopeIds, messages: [{role, content, sources, declined}]}]
+// id of the conversation currently open in Notebook (shared with the sidebar)
+const currentConvoId = ref(null);
 
 export function useChatHistory() {
   function saveConversation(conv) {
     conversations.value = [conv, ...conversations.value.filter(c => c.id !== conv.id)].slice(0, 30);
+    saveJSON('conversations', conversations.value);
+  }
+  function renameConversation(id, title) {
+    const idx = conversations.value.findIndex(c => c.id === id);
+    if (idx < 0) return;
+    // in-place update: renaming must not reorder the list
+    const next = [...conversations.value];
+    const conv = next[idx];
+    next[idx] = { ...conv, title: (title || '').trim() || conv.title };
+    conversations.value = next;
     saveJSON('conversations', conversations.value);
   }
   function removeConversation(id) {
@@ -90,7 +102,7 @@ export function useChatHistory() {
     conversations.value = [];
     saveJSON('conversations', conversations.value);
   }
-  return { conversations, saveConversation, removeConversation, clearAll };
+  return { conversations, currentConvoId, saveConversation, renameConversation, removeConversation, clearAll };
 }
 
 /* --------------------------- notebook settings ---------------------------- */

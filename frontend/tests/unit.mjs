@@ -146,4 +146,43 @@ test('history upsert caps at 30 conversations', () => {
   assert.equal(list[0].id, 'c34');
 });
 
+// --- rename mirrors useChatHistory.renameConversation (in-place, no reorder) ---
+function renameConversation(list, id, title) {
+  const idx = list.findIndex(c => c.id === id);
+  if (idx < 0) return list;
+  const next = [...list];
+  next[idx] = { ...next[idx], title: (title || '').trim() || next[idx].title };
+  return next;
+}
+
+test('rename updates title and keeps messages', () => {
+  const list = [
+    { id: 'c1', title: 'How does backpropagation relate...', messages: [{ role: 'user', content: 'q' }] },
+  ];
+  const out = renameConversation(list, 'c1', 'Backpropagation & Gradient Descent');
+  assert.equal(out[0].title, 'Backpropagation & Gradient Descent');
+  assert.equal(out[0].messages.length, 1);
+});
+
+test('rename preserves list order', () => {
+  const list = [
+    { id: 'c2', title: 'Second', messages: [] },
+    { id: 'c1', title: 'First', messages: [] },
+  ];
+  const out = renameConversation(list, 'c1', 'Renamed');
+  assert.deepEqual(out.map(c => c.id), ['c2', 'c1']);
+  assert.equal(out[1].title, 'Renamed');
+});
+
+test('rename ignores blank titles', () => {
+  const list = [{ id: 'c1', title: 'Original', messages: [] }];
+  const out = renameConversation(list, 'c1', '   ');
+  assert.equal(out[0].title, 'Original');
+});
+
+test('rename of unknown id leaves list unchanged', () => {
+  const list = [{ id: 'c1', title: 'T', messages: [] }];
+  assert.deepEqual(renameConversation(list, 'nope', 'New'), list);
+});
+
 console.log(`\n${passed} tests passed`);

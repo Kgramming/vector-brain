@@ -6,6 +6,7 @@
       :view="view" :collapsed="sidebarCollapsed"
       :doc-count="documents.length" :ready-count="readyDocs.length"
       @navigate="go" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
+      @new-chat="handleNewChat" @open-chat="handleOpenChat" @delete-chat="handleDeleteChat"
     />
 
     <!-- mobile drawer -->
@@ -16,6 +17,7 @@
           :view="view"
           :doc-count="documents.length" :ready-count="readyDocs.length"
           @navigate="(v) => { go(v); drawerOpen = false; }" @toggle-collapse="drawerOpen = false"
+          @new-chat="handleNewChat" @open-chat="handleOpenChat" @delete-chat="handleDeleteChat"
         />
       </div>
     </transition>
@@ -60,6 +62,7 @@
         />
         <NotebookView
           v-else-if="view === 'notebook'"
+          ref="notebookRef"
           :documents="documents"
           :preset-doc-ids="notebookPreset.docIds"
           :preset-question="notebookPreset.question"
@@ -91,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import VbIcon from './components/VbIcon.vue';
 import AppSidebar from './components/AppSidebar.vue';
 import Toasts from './components/Toasts.vue';
@@ -104,7 +107,7 @@ import RecentView from './views/RecentView.vue';
 import SettingsView from './views/SettingsView.vue';
 import ProfileView from './views/ProfileView.vue';
 import { useLibrary } from './composables/useLibrary.js';
-import { useFavorites, useRecents } from './composables/usePrefs.js';
+import { useFavorites, useRecents, useChatHistory } from './composables/usePrefs.js';
 
 const view = ref('home');
 const uploadOpen = ref(false);
@@ -113,6 +116,7 @@ const sidebarCollapsed = ref(false);
 const mockDismissed = ref(false);
 const isMobile = ref(false);
 const notebookPreset = ref({ docIds: [], question: '' });
+const notebookRef = ref(null);
 
 const { documents, health, loading, backendDown, readyDocs, totalPages, totalChunks, refresh, startPolling } = useLibrary();
 const { toggle: toggleFav } = useFavorites();
@@ -133,6 +137,32 @@ function openInNotebook(doc) {
 function askAgain(q) {
   notebookPreset.value = { docIds: [], question: q };
   view.value = 'notebook';
+}
+
+// ---- sidebar conversation actions (ChatGPT-style) ----
+function handleNewChat() {
+  if (isMobile.value) drawerOpen.value = false;
+  go('notebook');
+  nextTick(() => notebookRef.value?.newChat());
+}
+function handleOpenChat(conv) {
+  if (isMobile.value) drawerOpen.value = false;
+  go('notebook');
+  nextTick(() => notebookRef.value?.openConversation(conv));
+}
+function handleDeleteChat(id) {
+  if (isMobile.value) drawerOpen.value = false;
+  if (notebookRef.value) {
+    notebookRef.value.deleteConversation(id);
+  } else {
+    // notebook not mounted (e.g. deleting from Home): remove directly
+    const { removeConversation, currentConvoId } = useChatHistory();
+    removeConversation(id);
+    if (currentConvoId.value === id) {
+      currentConvoId.value = null;
+      try { localStorage.removeItem('vb:currentConvoId'); } catch { /* ignore */ }
+    }
+  }
 }
 
 function checkMobile() {

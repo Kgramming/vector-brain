@@ -41,7 +41,71 @@
       <p v-if="!readyCount" class="vb-side-hint">Upload PDFs to build your second brain.</p>
     </div>
 
-    <div class="vb-side-spacer" />
+    <!-- conversations -->
+    <div v-if="!collapsed" class="vb-chats">
+      <button class="vb-new-chat" @click="$emit('new-chat')">
+        <VbIcon name="plus" :size="15" />
+        <span class="vb-nav-label">New chat</span>
+      </button>
+      <p class="vb-side-heading">Recent chats</p>
+      <div class="vb-chat-list">
+        <div
+          v-for="c in conversations" :key="c.id"
+          class="vb-chat-item"
+          :class="{ active: c.id === currentConvoId }"
+        >
+          <!-- normal row -->
+          <template v-if="deletingId !== c.id">
+            <button
+              v-if="renamingId !== c.id"
+              class="vb-chat-open"
+              @click="$emit('open-chat', c)"
+              :title="c.title"
+            >
+              <VbIcon name="chat" :size="15" class="vb-chat-ico" />
+              <span class="vb-chat-title">{{ c.title || 'Conversation' }}</span>
+            </button>
+            <input
+              v-else
+              ref="renameInput"
+              v-model="renameText"
+              class="vb-chat-rename"
+              aria-label="Rename conversation"
+              @keydown.enter="commitRename(c)"
+              @keydown.escape="renamingId = null"
+              @blur="commitRename(c)"
+              @click.stop
+            />
+            <button
+              v-if="renamingId !== c.id"
+              class="vb-chat-menu-btn"
+              :aria-expanded="menuFor === c.id"
+              aria-label="Conversation options"
+              title="Options"
+              @click.stop="menuFor = menuFor === c.id ? null : c.id"
+            >
+              <VbIcon name="dots" :size="15" />
+            </button>
+            <div v-if="menuFor === c.id && renamingId !== c.id" class="vb-chat-menu" role="menu">
+              <button role="menuitem" @click="startRename(c)"><VbIcon name="pencil" :size="14" /> Rename</button>
+              <button role="menuitem" class="danger" @click="askDelete(c)"><VbIcon name="trash" :size="14" /> Delete</button>
+            </div>
+          </template>
+          <!-- delete confirm -->
+          <div v-else class="vb-chat-del">
+            <span class="vb-chat-del-text">Delete this chat?</span>
+            <div class="vb-chat-del-actions">
+              <button class="vb-btn vb-btn-sm vb-chat-del-yes" @click.stop="$emit('delete-chat', c.id); deletingId = null">Delete</button>
+              <button class="vb-btn vb-btn-ghost vb-btn-sm" @click.stop="deletingId = null">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <p v-if="!conversations.length" class="vb-side-hint">No conversations yet — ask something in Notebook.</p>
+      </div>
+    </div>
+    <div v-if="menuFor" class="vb-menu-backdrop" @click="menuFor = null" />
+
+    <div v-if="collapsed" class="vb-side-spacer" />
 
     <!-- bottom -->
     <nav class="vb-nav vb-nav-bottom">
@@ -82,9 +146,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 import VbIcon from './VbIcon.vue';
-import { useProfile } from '../composables/usePrefs.js';
+import { useProfile, useChatHistory } from '../composables/usePrefs.js';
 
 defineProps({
   view: { type: String, required: true },
@@ -93,9 +157,42 @@ defineProps({
   readyCount: { type: Number, default: 0 },
   favCount: { type: Number, default: 0 },
 });
-defineEmits(['navigate', 'toggle-collapse']);
+defineEmits(['navigate', 'toggle-collapse', 'new-chat', 'open-chat', 'delete-chat']);
 
 const { profile, initials } = useProfile();
+const { conversations, currentConvoId, renameConversation } = useChatHistory();
+
+const menuFor = ref(null);
+const renamingId = ref(null);
+const renameText = ref('');
+const renameInput = ref(null);
+const deletingId = ref(null);
+let renameCommitted = false;
+
+function startRename(c) {
+  menuFor.value = null;
+  deletingId.value = null;
+  renamingId.value = c.id;
+  renameText.value = c.title || '';
+  renameCommitted = false;
+  nextTick(() => {
+    const el = Array.isArray(renameInput.value) ? renameInput.value[0] : renameInput.value;
+    el?.focus();
+    el?.select();
+  });
+}
+function commitRename(c) {
+  if (renameCommitted || renamingId.value !== c.id) return;
+  renameCommitted = true;
+  const t = renameText.value.trim();
+  if (t && t !== c.title) renameConversation(c.id, t);
+  renamingId.value = null;
+}
+function askDelete(c) {
+  menuFor.value = null;
+  renamingId.value = null;
+  deletingId.value = c.id;
+}
 
 const mainNav = computed(() => [
   { id: 'home', label: 'Home', icon: 'home' },
@@ -170,6 +267,83 @@ const bottomNav = [
 .vb-side-hint { font-size: 12px; color: var(--text-3); margin: 8px 8px 0; line-height: 1.5; }
 
 .vb-side-spacer { flex: 1; min-height: 12px; }
+
+/* ---- recent chats ---- */
+.vb-chats {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  margin-top: 16px;
+}
+.vb-new-chat {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--text-1);
+  font: 600 13.5px/1.2 var(--font-sans); cursor: pointer; text-align: left;
+  transition: border-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+  flex-shrink: 0;
+}
+.vb-new-chat:hover { border-color: var(--accent-border); color: var(--accent); box-shadow: var(--shadow-sm); }
+.vb-new-chat svg { flex-shrink: 0; }
+.vb-chats .vb-side-heading { margin-bottom: 4px; }
+.vb-chat-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 0 -4px; padding: 2px 4px 8px;
+}
+.vb-chat-item {
+  position: relative; display: flex; align-items: center;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast);
+}
+.vb-chat-item:hover { background: var(--hover-bg); }
+.vb-chat-item.active { background: var(--accent-soft); }
+.vb-chat-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px;
+  padding: 8px 6px 8px 10px; border: 0; background: none; cursor: pointer;
+  color: var(--text-2); font: 500 13px/1.35 var(--font-sans); text-align: left;
+}
+.vb-chat-item.active .vb-chat-open { color: var(--accent); font-weight: 600; }
+.vb-chat-ico { flex-shrink: 0; opacity: 0.7; }
+.vb-chat-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vb-chat-menu-btn {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-right: 4px;
+  border: 0; border-radius: 8px; background: none; cursor: pointer; color: var(--text-3);
+  opacity: 0; transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+}
+.vb-chat-item:hover .vb-chat-menu-btn,
+.vb-chat-item.active .vb-chat-menu-btn,
+.vb-chat-menu-btn[aria-expanded="true"] { opacity: 1; }
+.vb-chat-menu-btn:hover { background: var(--surface-3); color: var(--text-1); }
+.vb-chat-menu {
+  position: absolute; right: 4px; top: calc(100% - 4px); z-index: 30;
+  min-width: 140px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column;
+}
+.vb-chat-menu button {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--text-2); font: 500 13px var(--font-sans); text-align: left; width: 100%;
+}
+.vb-chat-menu button:hover { background: var(--hover-bg); color: var(--text-1); }
+.vb-chat-menu button.danger { color: var(--danger); }
+.vb-chat-menu button.danger:hover { background: var(--danger-soft); }
+.vb-menu-backdrop { position: fixed; inset: 0; z-index: 20; }
+.vb-chat-rename {
+  flex: 1; min-width: 0; margin: 4px 4px 4px 10px; padding: 6px 8px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--input-bg); color: var(--text-1);
+  font: 500 13px var(--font-sans);
+}
+.vb-chat-rename:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.vb-chat-del { flex: 1; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.vb-chat-del-text { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
+.vb-chat-del-actions { display: flex; gap: 6px; }
+.vb-chat-del-yes { background: var(--danger); border-color: var(--danger); color: #fff; }
+.vb-chat-del-yes:hover { filter: brightness(0.95); }
 .vb-nav-bottom { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
 .vb-collapse-btn { color: var(--text-3); }
 

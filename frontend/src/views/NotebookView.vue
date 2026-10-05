@@ -26,14 +26,6 @@
           <button class="vb-link" @click="$emit('upload')">Upload a PDF</button> to start asking.
         </p>
       </div>
-      <div class="vb-scope-foot">
-        <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="newChat">
-          <VbIcon name="plus" :size="14" /> New chat
-        </button>
-        <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="historyOpen = true" title="Browse previous conversations">
-          <VbIcon name="clock" :size="14" /> History
-        </button>
-      </div>
     </aside>
 
     <!-- center: conversation -->
@@ -144,15 +136,6 @@
         </article>
       </div>
     </aside>
-
-    <ChatHistoryModal
-      v-if="historyOpen"
-      :conversations="conversations"
-      :current-id="currentConvoId"
-      @close="historyOpen = false"
-      @open="openConversation"
-      @delete="deleteConversation"
-    />
   </div>
 </template>
 
@@ -164,7 +147,6 @@ import { renderMarkdown, bindCitations } from '../utils/markdown.js';
 import { shortName, pageLabel, relevanceLabel, filterSourcesToCited } from '../utils/format.js';
 import { useRecents, useChatHistory, usePrefs } from '../composables/usePrefs.js';
 import { useToasts } from '../composables/useToasts.js';
-import ChatHistoryModal from '../components/ChatHistoryModal.vue';
 
 const props = defineProps({
   documents: { type: Array, default: () => [] },
@@ -175,7 +157,7 @@ const props = defineProps({
 const emit = defineEmits(['upload']);
 
 const { pushQuestion } = useRecents();
-const { conversations, saveConversation, removeConversation } = useChatHistory();
+const { conversations, currentConvoId, saveConversation, renameConversation, removeConversation } = useChatHistory();
 const { notebookPrefs } = usePrefs();
 const { error: toastError } = useToasts();
 
@@ -183,8 +165,6 @@ const readyDocs = computed(() => props.documents.filter(d => d.status === 'ready
 const selectedIds = ref(new Set());
 const scopeOpen = ref(true);
 const sourcesOpen = ref(true);
-const historyOpen = ref(false);
-const currentConvoId = ref(null);
 
 const messages = ref([]);
 const draft = ref('');
@@ -299,9 +279,12 @@ function persistCurrent() {
   if (!messages.value.length) return;
   if (!currentConvoId.value) currentConvoId.value = 'c' + Date.now();
   const firstUser = messages.value.find(m => m.role === 'user');
+  // preserve a user-renamed title; only derive from the first question for new chats
+  const existing = conversations.value.find(c => c.id === currentConvoId.value);
+  const title = existing?.title || (firstUser ? firstUser.content.slice(0, 60) : 'Conversation');
   saveConversation({
     id: currentConvoId.value,
-    title: firstUser ? firstUser.content.slice(0, 60) : 'Conversation',
+    title,
     at: Date.now(),
     scopeIds: scopeIdsOrNull(),
     messages: snapshotMessages(),
@@ -341,7 +324,6 @@ function openConversation(conv) {
   activeMsg.value = null;
   activeRank.value = null;
   error.value = '';
-  historyOpen.value = false;
   nextTick(() => { scrollBox.value?.scrollTo({ top: 0 }); inputEl.value?.focus(); });
 }
 
@@ -354,6 +336,9 @@ function deleteConversation(id) {
     activeRank.value = null;
   }
 }
+
+// actions driven from the app sidebar (ChatGPT-style conversation list)
+defineExpose({ newChat, openConversation, deleteConversation, renameConversation });
 
 async function send() {
   const q = draft.value.trim();
@@ -482,7 +467,6 @@ onMounted(() => {
 .vb-scope-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vb-scope-empty { font-size: 12.5px; color: var(--text-3); line-height: 1.6; padding: 8px; }
 .vb-link { background: none; border: 0; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; font-size: inherit; }
-.vb-scope-foot { margin-top: auto; padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 .vb-scope-toggle { display: none; }
 
 /* ---- center: chat ---- */
