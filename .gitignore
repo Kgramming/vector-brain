@@ -16,6 +16,7 @@ backend/.env
 uploads/
 *.pdf
 !docs/**/*.pdf
+!demo-pdfs/**/*.pdf
 
 # Frontend
 frontend/node_modules/
