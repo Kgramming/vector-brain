@@ -49,3 +49,26 @@ export function pageLabel(pageStart, pageEnd) {
   if (pageEnd && pageEnd !== pageStart) return `pp. ${pageStart}–${pageEnd}`;
   return `p. ${pageStart}`;
 }
+
+/**
+ * Extract the set of citation ranks (e.g. [1], [3]) cited in an answer.
+ * Used to keep the Sources panel consistent with the citations the model
+ * actually emitted — never show a source the answer didn't cite.
+ */
+export function citedRanks(text) {
+  const ranks = new Set();
+  if (!text) return ranks;
+  const re = /\[(\d+)\]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) ranks.add(Number(m[1]));
+  return ranks;
+}
+
+/**
+ * Keep only the sources whose rank was cited in the answer text.
+ * The Sources panel must correspond exactly to the emitted citations.
+ */
+export function filterSourcesToCited(sources, answerText) {
+  const cited = citedRanks(answerText);
+  return (sources || []).filter(s => cited.has(s.rank));
+}

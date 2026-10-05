@@ -149,7 +149,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import VbIcon from '../components/VbIcon.vue';
 import { streamChat } from '../services/api.js';
 import { renderMarkdown, bindCitations } from '../utils/markdown.js';
-import { shortName, pageLabel, relevanceLabel } from '../utils/format.js';
+import { shortName, pageLabel, relevanceLabel, filterSourcesToCited } from '../utils/format.js';
 import { useRecents, useChatHistory, usePrefs } from '../composables/usePrefs.js';
 import { useToasts } from '../composables/useToasts.js';
 
@@ -309,6 +309,9 @@ async function send() {
       onDone: ({ declined }) => {
         ans.declined = !!declined;
         ans.streaming = false;
+        // Strict grounding: the Sources panel must correspond exactly to the
+        // citations the model emitted — drop retrieved-but-uncited passages.
+        ans.sources = ans.declined ? [] : filterSourcesToCited(ans.sources, ans.content);
         busy.value = false;
         streamingMsg.value = false;
         pushQuestion(q, ans.declined);
