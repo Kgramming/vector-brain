@@ -92,27 +92,3 @@ Same body (`question`, optional `top_k`, optional `document_ids`). Response:
   "sources": [ /* same shape as SSE sources, [] when declined */ ]
 }
 ```
-
-## Knowledge Bytes
-
-### POST /api/knowledge-bytes — streaming explainer (SSE)
-
-Body: `{ "content": "…code or technical text…", "language": "python", "context_note": "auth module" }`
-(`language`/`context_note` optional; `content` max 60k chars.)
-
-Streams `data: {"token": "…"}` events in the architecture-first format:
-
-```
-BYTE N — <Component / Function / Responsibility>
-ROLE: …
-FLOW: Input → Processing → Output
-CONNECTS TO: …
-WHY: …
-KEY CODE: …
-…
-PUTTING IT TOGETHER
-…
-```
-
-In mock mode (no `GROQ_API_KEY`) it streams the format skeleton so the UI stays
-usable. Empty content → `422`.

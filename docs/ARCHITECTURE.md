@@ -22,7 +22,23 @@ Numbered context block [1..n] + question → Groq (openai/gpt-oss-120b, streamin
  ↓
 Answer with [n] citations  ·  [DECLINED] refusals carry no sources
  ↓
-Vue.js 3 (Library / Notebook / Knowledge Bytes)
+Vue 3 frontend  (Home / Library / Notebook / Favorites / Recent / Settings)
+```
+
+## System diagram
+
+```mermaid
+flowchart LR
+    PDF[PDF uploads] --> DL[Docling<br/>page-aware parsing]
+    DL --> CH[Overlapping chunker<br/>1000 chars · 150 overlap]
+    CH --> EMB[all-MiniLM-L6-v2<br/>384-dim embeddings]
+    EMB --> PG[(PostgreSQL 16 + pgvector<br/>ivfflat cosine index)]
+    Q[User question] --> QE[Query embedding]
+    QE --> RET[Cosine similarity search<br/>top_k × 2 → threshold 0.30 → top_k]
+    PG --> RET
+    RET --> CTX[Numbered context block<br/>[1] … [n]]
+    CTX --> GROQ[Groq · openai/gpt-oss-120b<br/>SSE streaming]
+    GROQ --> ANS[Answer with [n] citations]
 ```
 
 ## Backend layout (`backend/app/`)
@@ -37,7 +53,6 @@ Vue.js 3 (Library / Notebook / Knowledge Bytes)
 | `db.py` | All SQL in one place (psycopg3 pool); schema via `migrations/001_init.sql` |
 | `retrieval.py` | Embed query → pgvector cosine search → threshold filter → context formatting |
 | `llm.py` | Groq streaming client, system prompt, `[DECLINED]` helpers, mock mode |
-| `knowledge_bytes.py` | Architecture-first 10-second explainer template + prompt builder |
 | `config.py` | Pydantic-settings; `EMBEDDING_DIM` validated to always equal 384 |
 
 ## Key design decisions
@@ -83,13 +98,18 @@ Indexes: `ivfflat (embedding vector_cosine_ops)` for ANN search, btree on
 
 ## Frontend layout (`frontend/src/`)
 
-| File | Responsibility |
+| Path | Responsibility |
 |---|---|
-| `App.vue` | Shell: header, Library/Notebook tabs, mock-mode banner, polling loop |
-| `components/UploadPanel.vue` | Drag-drop + picker upload, per-file status |
-| `components/DocumentList.vue` | Library table with status badges + delete |
-| `components/ChatPanel.vue` | Streaming chat, citation chips → excerpt viewer |
-| `components/KnowledgeBytesModal.vue` | Paste code → streaming Knowledge Bytes |
+| `App.vue` | App shell: sidebar, mobile drawer, toasts, upload modal host |
+| `views/HomeView.vue` | Dashboard: hero, live stats, recent documents/questions, onboarding |
+| `views/LibraryView.vue` | Grid/list views, search, sort, filter, favorites, delete |
+| `views/NotebookView.vue` | Document scope selector, streaming chat, `[n]` citations, source panel, history |
+| `views/FavoritesView.vue` / `views/RecentView.vue` | Starred documents / recently viewed |
+| `views/SettingsView.vue` / `views/ProfileView.vue` | Themes, density, motion (local-only) |
+| `components/UploadModal.vue` | Drag-drop upload with staged pipeline progress |
+| `components/DocCard.vue` | Document card with live indexing status |
+| `components/AppSidebar.vue` | Collapsible navigation sidebar |
+| `composables/useTheme.js` | Light/Dark/Midnight/High-Contrast + accents, persisted |
 | `services/api.js` | REST + hand-rolled SSE parsing (no extra deps) |
 
 ## Failure modes
