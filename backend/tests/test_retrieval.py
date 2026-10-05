@@ -1,7 +1,6 @@
-"""Unit tests for retrieval helpers and the Knowledge Bytes module."""
+"""Unit tests for retrieval helpers."""
 
 from app import retrieval
-from app.knowledge_bytes import build_knowledge_bytes_prompt, render_bytes_preview
 from app.retrieval import format_context
 
 
@@ -65,24 +64,3 @@ def test_retrieve_document_ids_default_none(monkeypatch):
     )
     retrieval.retrieve("q")
     assert seen["doc_ids"] is None
-
-
-def test_knowledge_bytes_prompt_has_architecture_first_format():
-    msgs = build_knowledge_bytes_prompt("def f():\n    pass", language="python")
-    system = msgs[0]["content"]
-    for section in ["BYTE N", "ROLE:", "FLOW:", "CONNECTS TO:", "WHY:", "KEY CODE:", "PUTTING IT TOGETHER"]:
-        assert section in system
-    assert "10 seconds" in system
-    assert "```" in msgs[1]["content"]
-    assert "python" in msgs[1]["content"].lower()
-
-
-def test_knowledge_bytes_prompt_truncates_huge_content():
-    msgs = build_knowledge_bytes_prompt("x" * 100000)
-    assert len(msgs[1]["content"]) < 30000
-
-
-def test_knowledge_bytes_preview_skeleton():
-    preview = render_bytes_preview("def ingest():\n    pass")
-    assert "BYTE 1" in preview
-    assert "PUTTING IT TOGETHER" in preview

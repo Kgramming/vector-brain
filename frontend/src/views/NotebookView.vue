@@ -30,9 +30,6 @@
         <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="newChat">
           <VbIcon name="plus" :size="14" /> New chat
         </button>
-        <button class="vb-btn vb-btn-ghost vb-btn-sm" @click="kbOpen = true" title="Explain code in 10-second Knowledge Bytes">
-          <VbIcon name="zap" :size="14" /> Explain
-        </button>
       </div>
     </aside>
 
@@ -144,15 +141,12 @@
         </article>
       </div>
     </aside>
-
-    <KnowledgeBytesModal v-if="kbOpen" @close="kbOpen = false" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import VbIcon from '../components/VbIcon.vue';
-import KnowledgeBytesModal from '../components/KnowledgeBytesModal.vue';
 import { streamChat } from '../services/api.js';
 import { renderMarkdown, bindCitations } from '../utils/markdown.js';
 import { shortName, pageLabel, relevanceLabel } from '../utils/format.js';
@@ -176,7 +170,6 @@ const readyDocs = computed(() => props.documents.filter(d => d.status === 'ready
 const selectedIds = ref(new Set());
 const scopeOpen = ref(true);
 const sourcesOpen = ref(true);
-const kbOpen = ref(false);
 
 const messages = ref([]);
 const draft = ref('');

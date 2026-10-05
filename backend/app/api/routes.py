@@ -6,7 +6,6 @@ Vector-Brain backend — HTTP API.
 - DELETE /api/documents/{id} delete document + its chunks
 - POST /api/chat             streaming SSE answer with citations
 - POST /api/chat/sync        non-streaming JSON answer (tests, simple clients)
-- POST /api/knowledge-bytes  streaming Knowledge Bytes for pasted code/content
 - GET  /api/health           service + dependency status
 """
 
@@ -23,7 +22,6 @@ from pydantic import BaseModel, Field
 
 from .. import db
 from ..config import get_settings
-from ..knowledge_bytes import build_knowledge_bytes_prompt, render_bytes_preview
 from ..llm import chat_once, is_declined, stream_chat, strip_declined_marker
 from ..pipeline import process_upload
 from ..retrieval import format_context, retrieve
@@ -44,12 +42,6 @@ class ChatSyncResponse(BaseModel):
     answer: str
     declined: bool
     sources: list[dict]
-
-
-class KnowledgeBytesRequest(BaseModel):
-    content: str = Field(min_length=1, max_length=60000)
-    language: str = Field(default="", max_length=50)
-    context_note: str = Field(default="", max_length=500)
 
 
 def _to_source_out(hits: list[dict]) -> list[dict]:
@@ -246,58 +238,3 @@ def chat_sync(req: ChatRequest):
         declined=declined,
         sources=[] if declined else _to_source_out(hits),
     )
-
-
-# ------------------------------------------------------------------ knowledge bytes
-
-@router.post("/knowledge-bytes")
-def knowledge_bytes(req: KnowledgeBytesRequest):
-    content = req.content.strip()
-    if not content:
-        raise HTTPException(status_code=422, detail="Content is empty")
-
-    def _gen():
-        if settings.mock_groq:
-            preview = render_bytes_preview(content)
-            for word in preview.split(" "):
-                yield f"data: {json.dumps({'token': word + ' '})}\n\n"
-            yield "event: done\ndata: {}\n\n"
-            return
-        messages = build_knowledge_bytes_prompt(content, req.language, req.context_note)
-        import httpx
-
-        payload = {
-            "model": settings.GROQ_MODEL,
-            "messages": messages,
-            "temperature": 0.3,
-            "stream": True,
-        }
-        headers = {"Authorization": f"Bearer {settings.GROQ_API_KEY}"}
-        try:
-            with httpx.stream(
-                "POST",
-                f"{settings.GROQ_BASE_URL}/chat/completions",
-                json=payload,
-                headers=headers,
-                timeout=180.0,
-            ) as resp:
-                resp.raise_for_status()
-                for line in resp.iter_lines():
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[5:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        delta = json.loads(data)["choices"][0]["delta"]
-                    except (KeyError, IndexError, ValueError):
-                        continue
-                    token = delta.get("content")
-                    if token:
-                        yield f"data: {json.dumps({'token': token})}\n\n"
-        except httpx.HTTPError as exc:
-            yield f"event: error\ndata: {json.dumps({'detail': f'Groq API error: {exc}'})}\n\n"
-            return
-        yield "event: done\ndata: {}\n\n"
-
-    return StreamingResponse(_gen(), media_type="text/event-stream")

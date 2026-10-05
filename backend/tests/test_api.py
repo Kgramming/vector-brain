@@ -215,16 +215,3 @@ def test_chat_stream_normal_answer_carries_sources(client, monkeypatch):
     srcs = _sse_sources(res)
     assert srcs and srcs[0]["filename"] == "n.pdf"
     assert '"declined": false' in res.text
-
-
-def test_knowledge_bytes_mock_streams_skeleton(client):
-    res = client.post("/api/knowledge-bytes", json={"content": "def f():\n    pass"})
-    assert res.status_code == 200
-    text = _sse_text(res)
-    assert "BYTE 1" in text
-    assert "PUTTING IT TOGETHER" in text
-
-
-def test_knowledge_bytes_rejects_empty(client):
-    res = client.post("/api/knowledge-bytes", json={"content": "  "})
-    assert res.status_code == 422

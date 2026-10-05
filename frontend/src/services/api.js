@@ -105,12 +105,3 @@ export async function streamChat(question, handlers, { topK, documentIds } = {})
   }));
   await readSSE(res, handlers);
 }
-
-export async function streamKnowledgeBytes({ content, language, context_note }, handlers) {
-  const res = await check(await fetch(url('/api/knowledge-bytes'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content, language: language || '', context_note: context_note || '' }),
-  }));
-  await readSSE(res, handlers);
-}
