@@ -151,8 +151,8 @@ onUnmounted(() => window.removeEventListener('resize', checkMobile));
 
 <style>
 .vb-app { display: flex; height: 100vh; overflow: hidden; }
-.vb-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.vb-content { flex: 1; overflow-y: auto; padding: 28px 32px 48px; }
+.vb-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.vb-content { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 48px; }
 .vb-content > * { animation: vb-rise var(--dur-med) var(--ease-out); }
 
 .vb-topbar {

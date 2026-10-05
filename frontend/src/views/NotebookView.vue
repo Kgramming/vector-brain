@@ -365,6 +365,7 @@ onMounted(() => {
   background: var(--sidebar-bg);
   display: flex; flex-direction: column;
   padding: 18px 14px; overflow-y: auto;
+  min-height: 0;
 }
 .vb-scope-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .vb-scope-head h2 { font-size: 14px; font-weight: 700; margin: 0; }
@@ -379,7 +380,7 @@ onMounted(() => {
 .vb-scope-all-text strong { font-size: 13px; }
 .vb-scope-all-text small { font-size: 11.5px; color: var(--text-3); }
 .vb-scope input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
-.vb-scope-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.vb-scope-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
 .vb-scope-item {
   display: flex; align-items: center; gap: 9px;
   padding: 8px 10px; border-radius: var(--radius-md); cursor: pointer;
@@ -404,7 +405,7 @@ onMounted(() => {
 .vb-chat-title h1 { font-size: 15px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vb-chat-title p { font-size: 12px; color: var(--text-3); margin: 2px 0 0; }
 
-.vb-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+.vb-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
 .vb-chat-empty { text-align: center; padding: 40px 20px; max-width: 560px; margin: 0 auto; }
 .vb-chat-empty-icon {
   width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px;
@@ -475,6 +476,7 @@ onMounted(() => {
 .vb-sources {
   border-left: 1px solid var(--border); background: var(--sidebar-bg);
   display: flex; flex-direction: column; overflow: hidden;
+  min-height: 0;
 }
 .vb-sources-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 10px; }
 .vb-sources-head h2 { font-size: 14px; font-weight: 700; margin: 0; }
@@ -482,7 +484,7 @@ onMounted(() => {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; gap: 12px; padding: 24px; color: var(--text-3); font-size: 13px; line-height: 1.6;
 }
-.vb-source-list { flex: 1; overflow-y: auto; padding: 6px 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.vb-source-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 14px 18px; display: flex; flex-direction: column; gap: 10px; }
 .vb-source-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
   padding: 12px 14px; transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
