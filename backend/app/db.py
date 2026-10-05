@@ -100,7 +100,7 @@ def list_documents() -> list[dict]:
         cur.execute(
             """
             SELECT id, filename, title, page_count, chunk_count, char_count,
-                   file_size, status, error, created_at
+                   file_size, sha256, status, error, created_at
             FROM documents ORDER BY created_at DESC
             """
         )
