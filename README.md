@@ -64,18 +64,17 @@ flowchart LR
 
 Full detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## 📚 Codebase Knowledge Bytes
+## 📚 Knowledge Bytes
 
 Understand how Vector-Brain works internally through guided, code-specific
-Knowledge Bytes generated from the actual implementation — module by module,
-with real source references.
+Knowledge Bytes generated from the actual implementation — each byte names
+the real source files and functions, shows actual snippets, and explains
+what the code does, why it exists, and how it connects to the rest of the
+project.
 
-**[Explore the Knowledge Bytes →](knowledge-bytes/README.md)**
+Read them in order — start with `01_System_Architecture.md`:
 
-Start with [System Overview](knowledge-bytes/architecture/system-overview.md)
-and [Request Lifecycle](knowledge-bytes/architecture/request-lifecycle.md),
-then dive into [Backend](knowledge-bytes/README.md#backend-backendapp) and
-[Frontend](knowledge-bytes/README.md#frontend-frontendsrc) bytes.
+**[Explore the Knowledge Bytes →](knowledge-bytes/)**
 
 ## Tech Stack
 
@@ -255,7 +254,7 @@ vector-brain/
 │                               # Favorites, Recent, Settings, Profile, theming
 │   └── src/
 ├── demo-pdfs/                  # 3 realistic study PDFs for first-run demos
-├── knowledge-bytes/            # standalone code-comprehension methodology
+├── knowledge-bytes/            # guided tour of the actual codebase (docs only)
 ├── docs/                       # architecture, API, demo script, evaluation
 ├── scripts/setup_db.sh         # local PostgreSQL setup (no Docker)
 ├── docker-compose.yml          # pgvector/pgvector:pg16, one command
@@ -265,14 +264,12 @@ vector-brain/
 
 ## Knowledge Bytes
 
-[`knowledge-bytes/`](knowledge-bytes/) is a **standalone, model-agnostic
-methodology** for understanding unfamiliar code — not a Vector-Brain feature.
-It defines a prompt that breaks any codebase into small, progressive
-"Knowledge Bytes" (~45 seconds each: context first, details next, edge cases
-last), each with *Builds on · In plain terms · The code · What's happening ·
-Why it matters*, ending with a *PUTTING IT TOGETHER* synthesis. It works with
-ChatGPT, Gemini, Claude, or any local model — no application integration
-required.
+[`knowledge-bytes/`](knowledge-bytes/) is a guided tour of the actual
+Vector-Brain implementation — numbered bytes (`01`–`08`) you read in order,
+each mapping to real source files with real snippets. The methodology that
+defines how a Knowledge Byte is written lives in
+[`knowledge-bytes/knowledge-bytes-prompt.md`](knowledge-bytes/knowledge-bytes-prompt.md)
+(model-agnostic, reusable for any codebase — not a Vector-Brain feature).
 
 ## Testing
 
