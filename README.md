@@ -37,16 +37,16 @@ clickable citations to the exact passages — page numbers included.
 
 ```mermaid
 flowchart LR
-    PDF[PDF uploads] --> DL[Docling<br/>page-aware parsing]
-    DL --> CH[Overlapping chunker<br/>1000 chars · 150 overlap]
-    CH --> EMB[all-MiniLM-L6-v2<br/>384-dim embeddings]
-    EMB --> PG[(PostgreSQL 16 + pgvector<br/>ivfflat cosine index)]
-    Q[User question] --> QE[Query embedding]
-    QE --> RET[Cosine similarity search<br/>top_k × 2 → threshold 0.30 → top_k]
+    PDF["PDF uploads"] --> DL["Docling<br/>page-aware parsing"]
+    DL --> CH["Overlapping chunker<br/>1000 chars · 150 overlap"]
+    CH --> EMB["all-MiniLM-L6-v2<br/>384-dim embeddings"]
+    EMB --> PG[("PostgreSQL 16 + pgvector<br/>ivfflat cosine index")]
+    Q["User question"] --> QE["Query embedding"]
+    QE --> RET["Cosine similarity search<br/>top_k × 2 → threshold 0.30 → top_k"]
     PG --> RET
-    RET --> CTX[Numbered context block<br/>[1] … [n]]
-    CTX --> GROQ[Groq · openai/gpt-oss-120b<br/>SSE streaming]
-    GROQ --> ANS[Answer with [n] citations]
+    RET --> CTX["Numbered context block<br/>[1] … [n]"]
+    CTX --> GROQ["Groq · openai/gpt-oss-120b<br/>SSE streaming"]
+    GROQ --> ANS["Answer with [n] citations"]
 ```
 
 **Why each piece exists:**
