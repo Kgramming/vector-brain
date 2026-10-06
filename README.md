@@ -11,6 +11,11 @@
 Upload PDFs, ask questions across all of them, and get streaming answers with
 clickable citations to the exact passages — page numbers included.
 
+**[🚀 Live Demo](https://itinerary-rehire-ramrod.ngrok-free.dev)**
+
+*The demo is shared from a local instance via ngrok — it is reachable while
+that instance is running.*
+
 ## Features
 
 - **Multi-document Q&A** — ask one question across your entire library; answers
@@ -63,6 +68,44 @@ flowchart LR
 | **Vue 3 frontend** | Home dashboard, Library, and Notebook views with theming and local-only preferences. |
 
 Full detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Screenshots
+
+A dark-theme tour of the real application, captured from a live instance
+with a 3-document demo library.
+
+**Home Dashboard** — library stats, recent documents, and quick actions:
+
+![Home Dashboard](docs/screenshots/01-home.png)
+
+**Multi-document Library** — every PDF parsed, chunked, embedded, and Ready:
+
+![Multi-document Library](docs/screenshots/02-library.png)
+
+**Notebook — RAG with Citations** — streaming answers with clickable `[n]`
+citations and a Sources panel (document, pages, relevance, excerpt):
+
+![Notebook — RAG with Citations](docs/screenshots/03-notebook-chat.png)
+
+**Multi-document Query** — scope a question to any subset of documents
+("2 of 3 documents in scope") and get answers grounded across them:
+
+![Multi-document Query](docs/screenshots/04-multi-doc.png)
+
+**Upload** — drag-and-drop PDF ingestion with per-stage pipeline progress
+(Docling → chunk → embed → index):
+
+![Upload](docs/screenshots/05-upload.png)
+
+**Chat History** — ChatGPT-style conversation sidebar with inline
+rename/delete and full conversation restore:
+
+![Chat History](docs/screenshots/06-history.png)
+
+**Settings** — themes, accent colors, density, retrieval depth, and citation
+display; everything stored locally:
+
+![Settings](docs/screenshots/07-settings.png)
 
 ## 📚 Knowledge Bytes
 
