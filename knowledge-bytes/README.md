@@ -1,112 +1,63 @@
-# Knowledge Bytes
+# Vector-Brain Knowledge Bytes
 
-A model-agnostic methodology for understanding unfamiliar code, one small piece at a time.
+Knowledge Bytes are a guided walkthrough of the **actual Vector-Brain codebase**.
+They break important modules and responsibilities into small, progressive
+explanations — each grounded in real source files with real code snippets — so a
+developer can understand the system without reverse-engineering the repository
+from scratch.
 
-## What are Knowledge Bytes?
+> These documents describe the current implementation. They are **developer
+> documentation**, not an application feature: there is no Knowledge Bytes page,
+> API endpoint, or database table in the running app.
+>
+> The *method* used to write them is defined separately in
+> [knowledge-bytes-prompt.md](knowledge-bytes-prompt.md) (kept as a reusable
+> reference). Everything else in this directory is the *result* of applying that
+> method to Vector-Brain's source code.
 
-A Knowledge Byte is a small, self-contained explanation of a single concept,
-function, code block, or responsibility inside an unfamiliar codebase. Instead of
-asking a language model to "explain this code" and receiving a wall of text,
-you ask it to break the code into a sequence of short, progressive bytes, each
-readable in about 45 seconds.
+## Start Here
 
-Each byte follows the same structure:
+1. [System Overview](architecture/system-overview.md) — the two programs, the database, configuration, and startup.
+2. [Request Lifecycle](architecture/request-lifecycle.md) — the write path (PDF → vectors) and the read path (question → cited answer).
 
-- **Builds on** — which earlier bytes this one assumes
-- **In plain terms** — what it is, in one or two jargon-free sentences
-- **The code** — the relevant snippet, nothing more
-- **What's happening** — how the snippet works
-- **Why it matters** — what it does (the WHAT) and why it exists (the WHY)
+## Backend (`backend/app/`)
 
-The sequence ends with a **PUTTING IT TOGETHER** section that synthesizes the
-bytes into one coherent mental model of the whole.
+| Byte | Source file(s) |
+|---|---|
+| [API](backend/api.md) | `api/routes.py` — endpoints, SSE streaming, refusal safety |
+| [Configuration](backend/config.md) | `config.py` — settings, the 384-dimension contract, mock modes |
+| [Database](backend/db.md) | `db.py`, `migrations/001_init.sql` — Postgres + pgvector schema and search |
+| [Ingestion](backend/ingest.md) | `ingest.py`, `pipeline.py` — Docling parse, chunking, background pipeline |
+| [Embeddings](backend/embeddings.md) | `embeddings.py` — MiniLM vectors, thread-safe loading, mock path |
+| [Retrieval](backend/retrieval.md) | `retrieval.py` — cosine search, thresholding, numbered context |
+| [LLM](backend/llm.md) | `llm.py` — Groq streaming, system prompt, `[DECLINED]` contract |
 
-The methodology is defined entirely by a prompt: [knowledge-bytes-prompt.md](knowledge-bytes-prompt.md).
-It works with any capable language model and requires no tools, plugins, or
-application integration.
+## Frontend (`frontend/src/`)
 
-## Why this methodology exists
+| Byte | Source file(s) |
+|---|---|
+| [Architecture](frontend/architecture.md) | `main.js`, `App.vue`, `AppSidebar.vue` — view switching, shell, theming |
+| [API Services](frontend/services.md) | `services/api.js` — REST helpers, SSE parsing |
+| [Library & Upload](frontend/library.md) | `LibraryView.vue`, `UploadModal.vue`, `useLibrary.js` |
+| [Notebook](frontend/notebook.md) | `NotebookView.vue` — chat, scoping, cited-only sources, history |
+| [Composables](frontend/composables.md) | `usePrefs.js`, `useTheme.js`, `useToasts.js`, `utils/format.js` |
 
-Reading unfamiliar code is one of the most common and most painful parts of
-software work: joining a team, reviewing a pull request, debugging a library you
-did not write, or revisiting your own code months later.
+## Source-code map
 
-The usual options are both flawed:
+Every byte names the exact file(s) it explains and quotes only short, relevant
+excerpts — never whole files. Cross-module connections are called out inline
+(e.g. how `routes.py` calls `retrieval.py`, how `NotebookView.vue` consumes
+`services/api.js`), and [Request Lifecycle](architecture/request-lifecycle.md)
+traces both end-to-end flows.
 
-1. **Read the raw code top to bottom.** Slow, and easy to drown in details
-   before understanding what the code is even for.
-2. **Ask a model for a full explanation.** Fast, but the result is usually a
-   long, flat summary that mixes purpose, mechanics, and trivia with no sense
-   of what to learn first.
+## Methodology & examples
 
-Knowledge Bytes fixes the ordering problem. It enforces a deliberate
-progression — context and purpose first, then structure, then details, and edge
-cases and gotchas last — so each new piece of information lands on a foundation
-the reader already has. Small units respect attention: a 45-second byte is easy
-to re-read, easy to question, and easy to skip if you already know it. And by
-requiring every byte to state WHAT the code does and WHY it exists, the method
-pushes past mechanical line-by-line narration toward real understanding.
+- [knowledge-bytes-prompt.md](knowledge-bytes-prompt.md) — the reusable Knowledge Bytes methodology.
+- [examples/example.md](examples/example.md) — a generic worked example of the format.
 
-## How to use it
+## Maintenance note
 
-Works with ChatGPT, Gemini, Claude, local models (Ollama, LM Studio, llama.cpp,
-or anything with a sufficient context window), or any other instruction-following
-model.
-
-1. Open [knowledge-bytes-prompt.md](knowledge-bytes-prompt.md) and copy the
-   entire prompt.
-2. Paste it into a fresh conversation with the model of your choice.
-3. Paste the code you want to understand after the prompt (one file, one
-   module, or one focused section at a time — see the note on size below).
-4. Read the bytes in order. Ask follow-up questions about any single byte
-   without losing the thread of the rest.
-
-**A note on size:** the method works best on focused units of code — a file, a
-class, a module, or a single feature's worth of functions. If you paste an
-entire repository, even a good model will be forced to skim. For large
-codebases, run the prompt once per file or per subsystem and treat each run's
-PUTTING IT TOGETHER as a byte in a larger map you assemble yourself. With local
-models, stay comfortably inside the model's context window; when in doubt,
-paste less code per run.
-
-## Expected output format
-
-Every run produces the same shape:
-
-```text
-BYTE 1: <short title>
-Builds on: nothing — this is the starting point
-In plain terms: ...
-The code:
-    <relevant snippet>
-What's happening: ...
-Why it matters: ...
-
-BYTE 2: <short title>
-Builds on: Byte 1
-...
-
-PUTTING IT TOGETHER
-<synthesis: how the bytes connect, the end-to-end flow,
- and a one-paragraph mental model of the whole>
-```
-
-Bytes are ordered progressively: purpose and context first, structural overview
-next, important details after that, and edge cases and gotchas last. Each byte
-takes roughly 45 seconds to read.
-
-## Example
-
-See [examples/example.md](examples/example.md) for a complete worked example:
-the prompt applied to a small Python retry-with-backoff helper, producing four
-bytes plus the final synthesis.
-
-## Tips
-
-- **Challenge a byte.** If "Why it matters" feels thin, ask the model for the
-  concrete failure that would occur without that piece of code.
-- **Reorder for your goal.** Debugging? Read the gotchas byte first, then work
-  backward. Onboarding? Read in order.
-- **Use it on your own code.** Explaining a tricky function you wrote six
-  months ago is an excellent test of whether the prompt — and your code —
-  holds up.
+These bytes describe the implementation as of the commit they were written
+against. If the code changes, the affected byte should be updated to match —
+each byte's header lists its source file(s) to make that easy. There is no
+automated generation; quality comes from keeping the bytes close to the code.

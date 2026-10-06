@@ -64,6 +64,19 @@ flowchart LR
 
 Full detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+## 📚 Codebase Knowledge Bytes
+
+Understand how Vector-Brain works internally through guided, code-specific
+Knowledge Bytes generated from the actual implementation — module by module,
+with real source references.
+
+**[Explore the Knowledge Bytes →](knowledge-bytes/README.md)**
+
+Start with [System Overview](knowledge-bytes/architecture/system-overview.md)
+and [Request Lifecycle](knowledge-bytes/architecture/request-lifecycle.md),
+then dive into [Backend](knowledge-bytes/README.md#backend-backendapp) and
+[Frontend](knowledge-bytes/README.md#frontend-frontendsrc) bytes.
+
 ## Tech Stack
 
 | Layer | Technology |
